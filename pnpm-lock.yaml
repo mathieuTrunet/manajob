@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@internationalized/date':
+        specifier: ^3.5.5
+        version: 3.5.5
       '@radix-icons/vue':
         specifier: ^1.0.0
         version: 1.0.0(vue@3.5.6(typescript@5.6.2))
