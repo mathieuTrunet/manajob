@@ -3,39 +3,55 @@ import { toTypedSchema } from '@vee-validate/zod'
 import * as z from 'zod'
 import { Button } from '@/components/ui/button'
 import { FormControl, FormField, FormItem, FormLabel, FormDescription } from '@/components/ui/form'
-import { Dialog, DialogContent, DialogFooter, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogFooter, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { useForm } from 'vee-validate'
-//import { useOffersStore } from '@/stores/offers'
+import { useOffersStore } from '@/stores/offers'
 import { Separator } from '../ui/separator'
 import { NumberField, NumberFieldContent, NumberFieldIncrement, NumberFieldDecrement, NumberFieldInput } from '../ui/number-field'
 import { Calendar } from '../ui/calendar'
 import { PopoverTrigger, Popover, PopoverContent } from '../ui/popover'
 import { cn } from '@/lib/utils'
 import { toDate } from 'radix-vue/date'
-import { ref } from 'vue'
+import { CalendarIcon } from '@radix-icons/vue'
+import { computed, watch } from 'vue'
+import { CalendarDate, DateFormatter, getLocalTimeZone, parseDate, today } from '@internationalized/date'
+import { Checkbox } from '../ui/checkbox'
 
-//const store = useOffersStore()
+const store = useOffersStore()
 
 const formSchema = toTypedSchema(z.object({
     companyName: z.string().min(2).max(25),
     offerLink: z.string().optional().default(''),
     experienceRequired: z.number().optional(),
-    offerDate: z.string().optional()
+    offerDate: z.string().optional(),
+    applied: z.boolean().default(false),
+    applyDate: z.string().optional(),
 }))
 
-const form = useForm({
+const { values, handleSubmit, setFieldValue } = useForm({
     validationSchema: formSchema,
     //keepValuesOnUnmount: true,
     //initialValues: { companyName: 'zed', offerLink: 'sfdfds', }
 })
 
-const onSubmit = form.handleSubmit((values) => {
-    console.log(values)
+const dateFormatter = new DateFormatter('en-GB', { dateStyle: 'short' })
+
+const selectedOfferDate = computed({
+    get: () => values.offerDate ? parseDate(values.offerDate) : undefined,
+    set: val => val,
 })
 
-const placeholder = ref()
+const selectedApplyDate = computed({
+    get: () => values.applyDate ? parseDate(values.applyDate) : undefined,
+    set: val => val,
+})
 
+const formIsUncompleted = computed(() => !values.companyName || values.companyName.length < 2)
+
+watch(() => values.applied, (newVal, oldVal) => (!newVal && oldVal && values.applyDate) && setFieldValue('applyDate', undefined))
+
+const onSubmit = handleSubmit((values) => store.addOffers({ ...values, answerReceived: false, classified: false, additionalNotes: '' }))
 
 </script>
 
@@ -44,17 +60,18 @@ const placeholder = ref()
         <DialogTrigger as-child>
             <slot></slot>
         </DialogTrigger>
-        <DialogContent class="md:max-w-[600px]">
+        <DialogContent class="md:max-w-[700px]">
             <form @submit="onSubmit">
                 <DialogHeader class="mb-4">
                     <DialogTitle>Ajouter une candidature</DialogTitle>
                 </DialogHeader>
                 <DialogDescription />
-                <div class="flex place-content-around gap-12">
-                    <div>
+                <div class="flex place-content-around">
+                    <div class="space-y-4">
                         <FormField v-slot="{ componentField }" name="companyName">
                             <FormItem>
                                 <FormLabel>Entreprise<span class="text-rose-500"> *</span></FormLabel>
+                                <FormDescription />
                                 <FormControl>
                                     <Input type="text" placeholder="Nom de l'entreprise" v-bind="componentField" />
                                 </FormControl>
@@ -71,9 +88,10 @@ const placeholder = ref()
                         <FormField name="experienceRequired">
                             <FormItem>
                                 <FormLabel>Expérience</FormLabel>
+                                <FormDescription>Nombre d'années d'expériences requises</FormDescription>
                                 <FormControl>
                                     <NumberField :min="0"
-                                        @update:model-value="(v) => form.setFieldValue('experienceRequired', v ? v : undefined)">
+                                        @update:model-value="(v) => setFieldValue('experienceRequired', v ? v : undefined)">
                                         <NumberFieldContent>
                                             <NumberFieldDecrement />
                                             <FormControl>
@@ -83,42 +101,83 @@ const placeholder = ref()
                                         </NumberFieldContent>
                                     </NumberField>
                                 </FormControl>
-                                <FormDescription>Nombre d'années d'expériences requises</FormDescription>
                             </FormItem>
                         </FormField>
                     </div>
                     <Separator orientation="vertical" class="h-auto" />
-                    <div>
+                    <div class="space-y-4">
                         <FormField name="offerDate">
-                            <FormItem>
+                            <FormItem class="space-y-1">
                                 <FormLabel>Date de l'annonce</FormLabel>
+                                <FormDescription />
                                 <Popover>
-                                    <PopoverTrigger>
+                                    <PopoverTrigger as-child>
                                         <FormControl>
-                                            <Button variant="outline"
-                                                :class="cn('w-[240px] ps-3 text-start font-normal', !form.values.offerDate && 'text-muted-foreground',)">
-                                                <span>{{ form.values.offerDate ? form.values.offerDate : "Pick a date"
-                                                    }}</span>
-                                                <CalendarIcon class="ms-auto h-4 w-4 opacity-50" />
+                                            <Button variant="outline" :class="cn(
+                                                'w-[260px] ps-3 text-start font-normal',
+                                                !selectedOfferDate && 'text-muted-foreground',
+                                            )">
+                                                <span>{{ selectedOfferDate ?
+                                                    dateFormatter.format(toDate(selectedOfferDate)) : `Date de
+                                                    publication de l'annonce`}}</span>
+                                                <CalendarIcon class="ms-auto h-4 w-4 text-rose-500" />
                                             </Button>
                                             <input hidden>
                                         </FormControl>
                                     </PopoverTrigger>
                                     <PopoverContent class="w-auto p-0">
-                                        <Calendar v-model:placeholder="placeholder" v-model="form.values.offerDate"
-                                            calendar-label="Date of birth" initial-focus />
+                                        <Calendar v-model="selectedOfferDate" calendar-label="Date de l'annonce"
+                                            :min-value="new CalendarDate(1900, 1, 1)"
+                                            :max-value="today(getLocalTimeZone())"
+                                            @update:model-value="(v) => v ? setFieldValue('offerDate', v.toString()) : setFieldValue('offerDate', undefined)" />
+                                    </PopoverContent>
+                                </Popover>
+                            </FormItem>
+                        </FormField>
+                        <FormField v-slot="{ value, handleChange }" type="checkbox" name="applied">
+                            <FormItem>
+                                <FormControl>
+                                    <Checkbox :checked="value" @update:checked="handleChange" class="mr-2" />
+                                </FormControl>
+                                <FormLabel>Candidature envoyée</FormLabel>
+                            </FormItem>
+                        </FormField>
+                        <FormField name="applyDate">
+                            <FormItem>
+                                <FormLabel>Date de candidature</FormLabel>
+                                <FormDescription></FormDescription>
+                                <Popover>
+                                    <PopoverTrigger as-child>
+                                        <FormControl>
+                                            <Button :disabled="!values.applied" variant="outline" :class="cn(
+                                                'w-[260px] ps-3 text-start font-normal',
+                                                !selectedApplyDate && 'text-muted-foreground',
+                                            )">
+                                                <span>{{ selectedApplyDate ?
+                                                    dateFormatter.format(toDate(selectedApplyDate)) : `Date de
+                                                    candidature au poste`}}</span>
+                                                <CalendarIcon class="ms-auto h-4 w-4 text-rose-500" />
+                                            </Button>
+                                            <input hidden>
+                                        </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent class="w-auto p-0">
+                                        <Calendar v-model="selectedApplyDate" calendar-label="Date de candidature"
+                                            :min-value="new CalendarDate(1900, 1, 1)"
+                                            :max-value="selectedOfferDate || today(getLocalTimeZone())"
+                                            @update:model-value="(v) => v ? setFieldValue('applyDate', v.toString()) : setFieldValue('applyDate', undefined)" />
                                     </PopoverContent>
                                 </Popover>
                             </FormItem>
                         </FormField>
                     </div>
                 </div>
-
-
                 <DialogFooter>
-                    <Button type="submit">
-                        Ajouter
-                    </Button>
+                    <DialogClose>
+                        <Button type="submit" :disabled="formIsUncompleted">
+                            Ajouter
+                        </Button>
+                    </DialogClose>
                 </DialogFooter>
             </form>
         </DialogContent>
