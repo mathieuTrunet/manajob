@@ -7,16 +7,16 @@ import { Dialog, DialogContent, DialogFooter, DialogDescription, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { useForm } from 'vee-validate'
 import { useOffersStore } from '@/stores/offers'
-import { Separator } from '../ui/separator'
-import { NumberField, NumberFieldContent, NumberFieldIncrement, NumberFieldDecrement, NumberFieldInput } from '../ui/number-field'
-import { Calendar } from '../ui/calendar'
-import { PopoverTrigger, Popover, PopoverContent } from '../ui/popover'
+import { Separator } from './ui/separator'
+import { NumberField, NumberFieldContent, NumberFieldIncrement, NumberFieldDecrement, NumberFieldInput } from './ui/number-field'
+import { Calendar } from './ui/calendar'
+import { PopoverTrigger, Popover, PopoverContent } from './ui/popover'
 import { cn } from '@/lib/utils'
 import { toDate } from 'radix-vue/date'
 import { CalendarIcon } from '@radix-icons/vue'
 import { computed, watch } from 'vue'
 import { CalendarDate, DateFormatter, getLocalTimeZone, parseDate, today } from '@internationalized/date'
-import { Checkbox } from '../ui/checkbox'
+import { Checkbox } from './ui/checkbox'
 
 const store = useOffersStore()
 
@@ -127,7 +127,7 @@ const onSubmit = handleSubmit((values) => store.addOffers({ ...values, answerRec
                                     </PopoverTrigger>
                                     <PopoverContent class="w-auto p-0">
                                         <Calendar v-model="selectedOfferDate" calendar-label="Date de l'annonce"
-                                            :min-value="new CalendarDate(1900, 1, 1)"
+                                            :min-value="new CalendarDate(1970, 1, 1)"
                                             :max-value="today(getLocalTimeZone())"
                                             @update:model-value="(v) => v ? setFieldValue('offerDate', v.toString()) : setFieldValue('offerDate', undefined)" />
                                     </PopoverContent>
@@ -163,8 +163,8 @@ const onSubmit = handleSubmit((values) => store.addOffers({ ...values, answerRec
                                     </PopoverTrigger>
                                     <PopoverContent class="w-auto p-0">
                                         <Calendar v-model="selectedApplyDate" calendar-label="Date de candidature"
-                                            :min-value="new CalendarDate(1900, 1, 1)"
-                                            :max-value="selectedOfferDate || today(getLocalTimeZone())"
+                                            :min-value="selectedOfferDate || new CalendarDate(1900, 1, 1)"
+                                            :max-value="today(getLocalTimeZone())"
                                             @update:model-value="(v) => v ? setFieldValue('applyDate', v.toString()) : setFieldValue('applyDate', undefined)" />
                                     </PopoverContent>
                                 </Popover>

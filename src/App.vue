@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import MainTable from './components/mainTable/MainTable.vue';
+import MainTable from './components/MainTable.vue';
 import { CardContent, CardTitle, CardDescription, CardHeader } from './components/ui/card';
 import UpperBar from './components/UpperBar.vue';
 </script>

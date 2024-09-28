@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuGroup, DropdownMenuItem } from '../ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuGroup, DropdownMenuItem } from './ui/dropdown-menu';
 import { DotsHorizontalIcon, Pencil1Icon, ArchiveIcon, TrashIcon, UpdateIcon } from '@radix-icons/vue';
-import { Button } from '../ui/button';
+import { Button } from './ui/button';
 </script>
 <template>
     <DropdownMenu>
