@@ -9,55 +9,44 @@ import { useOffersStore } from '@/stores/offers';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import OfferForm from './OfferForm.vue';
 import { Checkbox } from './ui/checkbox';
-import { h } from 'vue';
+import { computed, h, watch } from 'vue';
 import DropDown from './DropDown.vue'
+import { cn } from '@/lib/utils';
+import { useArchiveStore } from '@/stores/archive';
 
-const store = useOffersStore()
+const offersStore = useOffersStore()
+
+const archiveStore = useArchiveStore()
+
+
+const parseDate = (date: string) => date.split('-').reverse().join('/')
 
 const columnHelper = createColumnHelper<Offer>()
 
 const selectColumn = columnHelper.display({
     id: 'select',
-    header: ({ table }) =>
-        h(Checkbox, {
-            checked: table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate'),
-            'onUpdate:checked': value => table.toggleAllPageRowsSelected(!!value),
-            ariaLabel: 'Select all',
-        }),
-    cell: ({ row }) =>
-        h(Checkbox, {
-            checked: row.getIsSelected(),
-            'onUpdate:checked': value => row.toggleSelected(!!value),
-            ariaLabel: 'Select row',
-        }),
+    header: ({ table }) => h(Checkbox, {
+        checked: table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate'),
+        'onUpdate:checked': value => table.toggleAllPageRowsSelected(!!value),
+        ariaLabel: 'Select all',
+    }),
+    cell: ({ row }) => h(Checkbox, {
+        checked: row.getIsSelected(),
+        'onUpdate:checked': value => row.toggleSelected(!!value),
+        ariaLabel: 'Select row',
+    }),
     enableSorting: false,
     enableHiding: false,
 })
-
-const parseDate = (date: string) => date.split('-').reverse().join('/')
-
 const companyNameColumn = columnHelper.accessor('companyName', {
-    header: ({ column }) =>
-        h(
-            Button,
-            {
-                variant: 'ghost',
-                onClick: () => column.toggleSorting(column.getIsSorted() === 'asc'),
-            },
-            () => ['Entreprise', h(CaretSortIcon, { class: 'ml-2 h-4 w-4' })]
-        ),
-    cell: ({ row }) =>
-        row.original.offerLink
-            ? h(
-                'a',
-                {
-                    href: `${row.original.offerLink}`,
-                    target: '_blank',
-                    class: 'font-bold capitalize text-base hover:underline decoration-rose-500',
-                },
-                row.getValue('companyName')
-            )
-            : h('a', { class: 'font-bold capitalize text-base' }, row.getValue('companyName')),
+    header: ({ column }) => h(
+        Button, { variant: 'ghost', onClick: () => column.toggleSorting(column.getIsSorted() === 'asc'), },
+        () => ['Entreprise', h(CaretSortIcon, { class: 'ml-2 h-4 w-4' })]
+    ),
+    cell: ({ row }) => h('a', {
+        class: cn('capitalize text-base', row.original.offerLink && 'font-bold hover:underline decoration-rose-500'),
+        ...(row.original.offerLink && { href: `${row.original.offerLink}`, target: '_blank', }),
+    }, row.original.companyName),
     enableSorting: true,
     enableGlobalFilter: true,
 })
@@ -65,12 +54,15 @@ const companyNameColumn = columnHelper.accessor('companyName', {
 const appliedColumn = columnHelper.display({
     id: 'applied',
     header: `Candidature envoyée`,
-    cell: ({ row }) =>
-        h(Checkbox, {
-            defaultChecked: row.original.applied,
-            //'onUpdate:checked': status => { store.toggleAppliedByName(row.original.companyName, status), console.log(store.offers) },
-            class: 'data-[state=checked]:bg-green-600 data-[state=checked]:border-transparent',
-        }),
+    cell: ({ row }) => h(Checkbox, {
+        checked: row.original.applied,
+        'onUpdate:checked': (checked) => {
+            if (!row.getIsSelected()) return offersStore.setOffersApplied(checked, row.original)
+            if (row.getIsSelected() && getAllSelectedOffers().length === 1) return offersStore.setOffersApplied(checked, row.original)
+            if (row.getIsSelected() && getAllSelectedOffers().length > 1) return offersStore.setOffersApplied(checked, ...getAllSelectedOffers())
+        },
+        class: 'data-[state=checked]:bg-green-600 data-[state=checked]:border-transparent',
+    }),
     enableSorting: false,
     enableHiding: false,
 })
@@ -78,41 +70,37 @@ const appliedColumn = columnHelper.display({
 const answerReceivedColumn = columnHelper.display({
     id: 'answerReceived',
     header: `Réponse obtenue`,
-    cell: ({ row }) =>
-        h(Checkbox, {
-            defaultChecked: row.original.answerReceived,
-            class: 'data-[state=checked]:bg-green-600 data-[state=checked]:border-transparent',
-        }),
+    cell: ({ row }) => h(Checkbox, {
+        checked: row.original.answerReceived,
+        'onUpdate:checked': (checked) => {
+            if (!row.getIsSelected()) return offersStore.setOffersAnswerReceived(checked, row.original)
+            if (row.getIsSelected() && getAllSelectedOffers().length === 1) return offersStore.setOffersAnswerReceived(checked, row.original)
+            if (row.getIsSelected() && getAllSelectedOffers().length > 1) return offersStore.setOffersAnswerReceived(checked, ...getAllSelectedOffers())
+        },
+        class: 'data-[state=checked]:bg-green-600 data-[state=checked]:border-transparent',
+    }),
     enableSorting: false,
     enableHiding: false,
 })
 
 const offerDateColumn = columnHelper.accessor('offerDate', {
-    header: ({ column }) =>
-        h(
-            Button,
-            {
-                variant: 'ghost',
-                onClick: () => column.toggleSorting(column.getIsSorted() === 'asc'),
-            },
-            () => [`Date de l'annonce`, h(CaretSortIcon, { class: 'ml-2 h-4 w-4' })]
-        ),
-    cell: ({ row }) => row.original.applyDate ? parseDate(row.original.applyDate) : '-',
+    header: ({ column }) => h(Button, {
+        variant: 'ghost', onClick: () => column.toggleSorting(column.getIsSorted() === 'asc'),
+    },
+        () => [`Date de l'annonce`, h(CaretSortIcon, { class: 'ml-2 h-4 w-4' })]
+    ),
+    cell: ({ row }) => row.original.offerDate ? parseDate(row.original.offerDate) : '-',
     enableSorting: true,
     enableGlobalFilter: true,
     enableColumnFilter: true,
 })
 
 const applyDateColumn = columnHelper.accessor('applyDate', {
-    header: ({ column }) =>
-        h(
-            Button,
-            {
-                variant: 'ghost',
-                onClick: () => column.toggleSorting(column.getIsSorted() === 'asc'),
-            },
-            () => ['Date de candidature', h(CaretSortIcon, { class: 'ml-2 h-4 w-4' })]
-        ),
+    header: ({ column }) => h(Button, {
+        variant: 'ghost', onClick: () => column.toggleSorting(column.getIsSorted() === 'asc'),
+    },
+        () => ['Date de candidature', h(CaretSortIcon, { class: 'ml-2 h-4 w-4' })]
+    ),
     cell: ({ row }) => row.original.applyDate ? parseDate(row.original.applyDate) : '-',
     enableSorting: true,
     enableGlobalFilter: true,
@@ -120,7 +108,11 @@ const applyDateColumn = columnHelper.accessor('applyDate', {
 })
 
 const experienceRequiredColumn = columnHelper.accessor('experienceRequired', {
-    header: `Expérience requise`,
+    header: ({ column }) => h(Button, {
+        variant: 'ghost', onClick: () => column.toggleSorting(column.getIsSorted() === 'asc'),
+    },
+        () => [`Expérience requise`, h(CaretSortIcon, { class: 'ml-2 h-4 w-4' })]
+    ),
     cell: ({ row }) => (row.getValue('experienceRequired') ? `${row.getValue('experienceRequired')} ans` : '-'),
     enableGlobalFilter: true,
     enableColumnFilter: true,
@@ -129,7 +121,7 @@ const experienceRequiredColumn = columnHelper.accessor('experienceRequired', {
 const actionsColumn = columnHelper.display({
     id: 'actions',
     enableHiding: false,
-    cell: () => h(DropDown),
+    cell: ({ row }) => h(DropDown, { offer: row.original }),
 })
 
 const columns = [
@@ -143,9 +135,12 @@ const columns = [
     actionsColumn,
 ]
 
+const archivedOffers = computed(() => offersStore.offers.filter(offer => offer.archived))
+
+const nonArchivedOffers = computed(() => offersStore.offers.filter(offer => !offer.archived))
 
 const table = useVueTable({
-    get data() { return store.offers },
+    get data() { if (archiveStore.archives) { return archivedOffers.value } else { return nonArchivedOffers.value } },
     columns: columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -153,10 +148,13 @@ const table = useVueTable({
     globalFilterFn: 'arrIncludes',
 })
 
-const y = () => store.addOffers({ companyName: 'fsd', applied: true, classified: false, answerReceived: true, experienceRequired: 4, applyDate: '24/10/2024' })
+const getAllSelectedOffers = () => table.getSelectedRowModel().rows.filter(row => row.getIsSelected()).map(row => row.original)
 
-const u = () => store.addOffers({ companyName: 'gfdd', applied: false, classified: false, answerReceived: false, experienceRequired: 3, applyDate: '20214-05-24' })
+const deleteSelectedOffers = () => { offersStore.deleteOffers(...getAllSelectedOffers()), table.resetRowSelection() }
 
+const setArchivedSelectedOffers = () => { offersStore.setOffersArchived(!archiveStore.archives, ...getAllSelectedOffers()), table.resetRowSelection() }
+
+watch(() => archiveStore.archives, () => table.resetRowSelection())
 </script>
 
 <template>
@@ -164,24 +162,20 @@ const u = () => store.addOffers({ companyName: 'gfdd', applied: false, classifie
         <div class="flex flex-row space-x-3">
             <Input class="mb-4 w-[24vh]" placeholder="Chercher une entreprise..."
                 @update:model-value="value => table.setGlobalFilter(value)" />
-            <Tabs>
+            <Tabs default-value="current">
                 <TabsList>
-                    <TabsTrigger value="current">
-                        En cours
-                    </TabsTrigger>
-                    <TabsTrigger value="archived">
-                        Archives
-                    </TabsTrigger>
+                    <TabsTrigger :onclick="archiveStore.setFalse" value="current">En cours</TabsTrigger>
+                    <TabsTrigger :onclick="archiveStore.setTrue" value="archived">Archives</TabsTrigger>
                 </TabsList>
             </Tabs>
-            <Button :disabled="!(table.getIsSomeRowsSelected() || table.getIsAllRowsSelected())"
+            <Button class="w-32" :disabled="!(table.getIsSomeRowsSelected() || table.getIsAllRowsSelected())"
                 :variant="table.getIsSomeRowsSelected() || table.getIsAllRowsSelected() ? 'default' : 'ghost'"
-                :onclick="y">
-                <ArchiveIcon class="mr-2" /> Archiver
+                :onclick="setArchivedSelectedOffers">
+                <ArchiveIcon class="mr-2" /> {{ archiveStore.archives ? 'Désarchiver' : 'Archiver' }}
             </Button>
             <Button :disabled="!(table.getIsSomeRowsSelected() || table.getIsAllRowsSelected())"
-                :class="(table.getIsSomeRowsSelected() || table.getIsAllRowsSelected()) && 'focus-visible:bg-red-300 hover:bg-red-300 bg-red-500'"
-                variant="ghost" :onclick="u">
+                :class="cn((table.getIsSomeRowsSelected() || table.getIsAllRowsSelected()) && 'focus-visible:bg-red-300 hover:bg-red-300 bg-red-500 text-white')"
+                variant="ghost" :onclick="deleteSelectedOffers">
                 <TrashIcon class="mr-2" /> Supprimer
             </Button>
         </div>
@@ -193,7 +187,7 @@ const u = () => store.addOffers({ companyName: 'gfdd', applied: false, classifie
     </div>
 
     <Card class="h-full">
-        <CardContent class="p-0 h-full">
+        <CardContent class="p-0 h-full w-[125vh] h-[55vh]">
             <Table class="h-full">
                 <TableHeader>
                     <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
@@ -213,8 +207,20 @@ const u = () => store.addOffers({ companyName: 'gfdd', applied: false, classifie
                         </template>
                     </template>
                     <TableRow v-else>
-                        <TableCell :colspan="table.getAllColumns().length" class=" text-center">
-                            <span class="font-medium">Pas de candidature</span>
+                        <TableCell :colspan="table.getAllColumns().length" class=" ">
+                            <div class="flex flex-col place-content-center text-center items-center space-y-2 h-[50vh]">
+                                <span class="font-medium">
+                                    Pas de candidature {{ archiveStore.archives ? `archivée` : '' }}
+                                </span>
+                                <OfferForm v-if="!archiveStore.archives">
+                                    <Button class=" w-[25vh] ">
+                                        <PlusIcon class="mr-2" /> Ajouter une candidature
+                                    </Button>
+                                </OfferForm>
+                            </div>
+                        </TableCell>
+                        <TableCell>
+                            <span class="text-white select-none">____</span>
                         </TableCell>
                     </TableRow>
                 </TableBody>
