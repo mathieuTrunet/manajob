@@ -18,7 +18,9 @@ import { computed, watch } from 'vue'
 import { CalendarDate, DateFormatter, getLocalTimeZone, parseDate, today } from '@internationalized/date'
 import { Checkbox } from './ui/checkbox'
 
-const store = useOffersStore()
+const { modify = false, defaultValues, closeParent } = defineProps<{ modify?: boolean, defaultValues?: Offer, closeParent?: () => void }>()
+
+const offersStore = useOffersStore()
 
 const formSchema = toTypedSchema(z.object({
     companyName: z.string().min(2).max(25),
@@ -31,8 +33,8 @@ const formSchema = toTypedSchema(z.object({
 
 const { values, handleSubmit, setFieldValue } = useForm({
     validationSchema: formSchema,
-    //keepValuesOnUnmount: true,
-    //initialValues: { companyName: 'zed', offerLink: 'sfdfds', }
+    initialValues: defaultValues,
+    keepValuesOnUnmount: true
 })
 
 const dateFormatter = new DateFormatter('en-GB', { dateStyle: 'short' })
@@ -51,7 +53,12 @@ const formIsUncompleted = computed(() => !values.companyName || values.companyNa
 
 watch(() => values.applied, (newVal, oldVal) => (!newVal && oldVal && values.applyDate) && setFieldValue('applyDate', undefined))
 
-const onSubmit = handleSubmit((values) => store.addOffers({ ...values, answerReceived: false, classified: false, additionalNotes: '' }))
+const onSubmit = handleSubmit((values) => {
+    if (modify) { offersStore.modifyOffer({ ...values, answerReceived: false, additionalNotes: '', archived: defaultValues!.archived, id: defaultValues!.id }) }
+    else { offersStore.addOffers({ ...values, answerReceived: false, additionalNotes: '', archived: false, id: crypto.randomUUID() }) }
+    if (closeParent) { closeParent() }
+})
+
 
 </script>
 
@@ -63,7 +70,7 @@ const onSubmit = handleSubmit((values) => store.addOffers({ ...values, answerRec
         <DialogContent class="md:max-w-[700px]">
             <form @submit="onSubmit">
                 <DialogHeader class="mb-4">
-                    <DialogTitle>Ajouter une candidature</DialogTitle>
+                    <DialogTitle>{{ modify ? 'Modifier' : 'Ajouter' }} une candidature</DialogTitle>
                 </DialogHeader>
                 <DialogDescription />
                 <div class="flex place-content-around">
@@ -175,7 +182,7 @@ const onSubmit = handleSubmit((values) => store.addOffers({ ...values, answerRec
                 <DialogFooter>
                     <DialogClose>
                         <Button type="submit" :disabled="formIsUncompleted">
-                            Ajouter
+                            {{ modify ? 'Modifier' : 'Ajouter' }}
                         </Button>
                     </DialogClose>
                 </DialogFooter>
