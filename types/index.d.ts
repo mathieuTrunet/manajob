@@ -1,9 +1,10 @@
 declare global {
   type Offer = {
+    id: string
     companyName: string
     applied: boolean
     answerReceived: boolean
-    classified: boolean
+    archived: boolean
     applyDate?: string
     offerDate?: string
     offerLink?: string
