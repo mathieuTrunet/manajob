@@ -54,11 +54,10 @@ const formIsUncompleted = computed(() => !values.companyName || values.companyNa
 watch(() => values.applied, (newVal, oldVal) => (!newVal && oldVal && values.applyDate) && setFieldValue('applyDate', undefined))
 
 const onSubmit = handleSubmit((values) => {
-    if (modify) { offersStore.modifyOffer({ ...values, answerReceived: false, additionalNotes: '', archived: defaultValues!.archived, id: defaultValues!.id }) }
-    else { offersStore.addOffers({ ...values, answerReceived: false, additionalNotes: '', archived: false, id: crypto.randomUUID() }) }
+    if (modify) { offersStore.modifyOffer({ ...values, answerReceived: false, archived: defaultValues!.archived, id: defaultValues!.id }) }
+    else { offersStore.addOffers({ ...values, answerReceived: false, archived: false, id: crypto.randomUUID() }) }
     if (closeParent) { closeParent() }
 })
-
 
 </script>
 
