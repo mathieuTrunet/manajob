@@ -1,20 +1,23 @@
 <script setup lang="ts">
 import MainTable from './components/MainTable.vue';
-import { CardContent, CardTitle, CardDescription, CardHeader } from './components/ui/card';
+import NoteZone from './components/NoteZone.vue';
 import UpperBar from './components/UpperBar.vue';
 </script>
 
 <template>
-    <div>
+    <div id="background" class="h-full">
         <UpperBar />
-        <div class="flex">
-            <CardContent>
-                <CardHeader class="px-0">
-                    <CardTitle>Candidatures</CardTitle>
-                    <CardDescription>Gérer vos candidatures en cours</CardDescription>
-                </CardHeader>
-                <MainTable />
-            </CardContent>
+        <div class="flex flex-row">
+            <MainTable class="pl-5" />
+            <div class="w-full mr-5">
+                <NoteZone />
+            </div>
         </div>
     </div>
 </template>
+
+<style scoped>
+#background {
+    background-image: url('./assets/grid.svg');
+}
+</style>
