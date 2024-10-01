@@ -3,7 +3,22 @@ import { ref } from 'vue'
 
 export const useOffersStore = defineStore('offers', () => {
   const offers = ref<Offer[]>([
-    { id: crypto.randomUUID(), companyName: 'fsd', applied: true, answerReceived: false, archived: false },
+    {
+      id: crypto.randomUUID(),
+      companyName: 'fsd',
+      applied: true,
+      answerReceived: false,
+      archived: false,
+      additionalNotes: '111',
+    },
+    {
+      id: crypto.randomUUID(),
+      companyName: 'fsdfsd',
+      applied: true,
+      answerReceived: false,
+      archived: false,
+      additionalNotes: '222',
+    },
   ])
 
   function addOffers(...addedOffers: Offer[]) {
