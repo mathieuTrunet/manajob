@@ -26,6 +26,8 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@iconify-json/radix-icons": "^1.2.0",
+    "@iconify/vue": "^4.1.2",
     "@types/node": "^22.5.5",
     "@vitejs/plugin-vue": "^5.1.2",
     "autoprefixer": "^10.4.20",
