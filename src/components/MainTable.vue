@@ -4,16 +4,19 @@ import { CardContent, CardTitle, CardDescription, CardHeader, Card } from '../co
 import { Input } from './ui/input';
 import { createColumnHelper, FlexRender, getCoreRowModel, getFilteredRowModel, getSortedRowModel, useVueTable } from '@tanstack/vue-table';
 import { Button } from './ui/button';
-import { PlusIcon, ArchiveIcon, TrashIcon, CaretSortIcon } from '@radix-icons/vue'
+import { PlusIcon, ArchiveIcon, TrashIcon, CaretSortIcon, BackpackIcon } from '@radix-icons/vue'
 import { useOffersStore } from '@/stores/offers';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import OfferForm from './OfferForm.vue';
 import { Checkbox } from './ui/checkbox';
-import { computed, h, watch } from 'vue';
+import { computed, h, HTMLAttributes, ref, watch } from 'vue';
 import DropDown from './DropDown.vue'
 import { cn } from '@/lib/utils';
 import { useArchiveStore } from '@/stores/archive';
 import { useNoteStore } from '@/stores/note';
+import DeleteAlertDialog from './DeleteAlertDialog.vue';
+
+const props = defineProps<{ class?: HTMLAttributes['class'] }>()
 
 const offersStore = useOffersStore()
 
@@ -46,7 +49,7 @@ const companyNameColumn = columnHelper.accessor('companyName', {
         () => ['Entreprise', h(CaretSortIcon, { class: 'ml-2 h-4 w-4' })]
     ),
     cell: ({ row }) => h('a', {
-        class: cn('capitalize text-base', row.original.offerLink && 'font-bold hover:underline decoration-rose-500'),
+        class: cn('capitalize text-base', row.original.offerLink && 'font-bold hover:underline decoration-primary'),
         ...(row.original.offerLink && { href: `${row.original.offerLink}`, target: '_blank', }),
     }, row.original.companyName),
     enableSorting: true,
@@ -63,7 +66,6 @@ const appliedColumn = columnHelper.display({
             if (row.getIsSelected() && getAllSelectedOffers().length === 1) return offersStore.setOffersApplied(checked, row.original)
             if (row.getIsSelected() && getAllSelectedOffers().length > 1) return offersStore.setOffersApplied(checked, ...getAllSelectedOffers())
         },
-        class: 'data-[state=checked]:bg-green-600 data-[state=checked]:border-transparent',
     }),
     enableSorting: false,
     enableHiding: false,
@@ -79,7 +81,6 @@ const answerReceivedColumn = columnHelper.display({
             if (row.getIsSelected() && getAllSelectedOffers().length === 1) return offersStore.setOffersAnswerReceived(checked, row.original)
             if (row.getIsSelected() && getAllSelectedOffers().length > 1) return offersStore.setOffersAnswerReceived(checked, ...getAllSelectedOffers())
         },
-        class: 'data-[state=checked]:bg-green-600 data-[state=checked]:border-transparent',
     }),
     enableSorting: false,
     enableHiding: false,
@@ -121,6 +122,7 @@ const experienceRequiredColumn = columnHelper.accessor('experienceRequired', {
 })
 
 const actionsColumn = columnHelper.display({
+    header: () => h('a', { class: 'px-6' }),
     id: 'actions',
     enableHiding: false,
     cell: ({ row }) => h(DropDown, { offer: row.original }),
@@ -141,13 +143,22 @@ const archivedOffers = computed(() => offersStore.offers.filter(offer => offer.a
 
 const nonArchivedOffers = computed(() => offersStore.offers.filter(offer => !offer.archived))
 
+const globalFilter = ref('')
+
+const setGlobalFilter = (value: string) => globalFilter.value = value
+
 const table = useVueTable({
     get data() { if (archiveStore.archives) { return archivedOffers.value } else { return nonArchivedOffers.value } },
     columns: columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    globalFilterFn: 'arrIncludes',
+    state: {
+        get globalFilter() {
+            return globalFilter.value
+        }
+    },
+    onGlobalFilterChange: setGlobalFilter,
 })
 
 const getAllSelectedOffers = () => table.getSelectedRowModel().rows.filter(row => row.getIsSelected()).map(row => row.original)
@@ -156,89 +167,89 @@ const deleteSelectedOffers = () => { offersStore.deleteOffers(...getAllSelectedO
 
 const setArchivedSelectedOffers = () => { offersStore.setOffersArchived(!archiveStore.archives, ...getAllSelectedOffers()), table.resetRowSelection() }
 
-watch(() => archiveStore.archives, () => table.resetRowSelection())
+watch(() => archiveStore.archives, table.resetRowSelection)
 
 watch(() => table.getRowCount(), () => { if (!table.getRowCount()) return table.resetRowSelection() })
 </script>
 
 <template>
-    <CardContent>
-        <Card class="p-2 my-3">
-            <CardHeader class="px-0">
-                <CardTitle>Candidatures</CardTitle>
+    <div :class="cn(props.class)">
+        <Card class="mb-4 max-w-6xl">
+            <CardHeader>
+                <CardTitle class="flex">
+                    <BackpackIcon class="mr-2" /> Candidatures
+                </CardTitle>
                 <CardDescription>Gérer vos candidatures à des offres d'emploi</CardDescription>
             </CardHeader>
-            <div class="flex justify-between">
-                <div class="flex flex-row space-x-3">
-                    <Input class="mb-4 w-[24vh]" placeholder="Chercher une entreprise..."
-                        @update:model-value="value => table.setGlobalFilter(value)" />
+            <CardContent>
+                <div
+                    class="grid max-w-5xl gap-3 lg:grid-rows-1 lg:grid-cols-6 sm:grid-rows-2 sm:grid-cols-3 grid-rows-5 grid-cols-1">
+
+                    <Input class="sm:col-span-2" placeholder="Chercher une entreprise..." v-model="globalFilter" />
+
+                    <OfferForm>
+                        <Button>
+                            <PlusIcon class="mr-2" /> Ajouter
+                        </Button>
+                    </OfferForm>
+
+                    <Button :disabled="!(table.getIsSomeRowsSelected() || table.getIsAllRowsSelected())"
+                        variant="outline" :onclick="setArchivedSelectedOffers">
+                        <ArchiveIcon class="mr-2" /> {{ archiveStore.archives ? 'Désarchiver' : 'Archiver' }}
+                    </Button>
+
+                    <DeleteAlertDialog :delete-function="deleteSelectedOffers" many-offers-to-delete>
+                        <Button :disabled="!(table.getIsSomeRowsSelected() || table.getIsAllRowsSelected())"
+                            :variant="(table.getIsSomeRowsSelected() || table.getIsAllRowsSelected()) ? 'destructive' : 'outline'">
+                            <TrashIcon class="mr-2" /> Supprimer
+                        </Button>
+                    </DeleteAlertDialog>
+
                     <Tabs default-value="current">
                         <TabsList>
                             <TabsTrigger :onclick="archiveStore.setFalse" value="current">En cours</TabsTrigger>
                             <TabsTrigger :onclick="archiveStore.setTrue" value="archived">Archives</TabsTrigger>
                         </TabsList>
                     </Tabs>
-                    <Button class="w-32" :disabled="!(table.getIsSomeRowsSelected() || table.getIsAllRowsSelected())"
-                        :variant="table.getIsSomeRowsSelected() || table.getIsAllRowsSelected() ? 'default' : 'ghost'"
-                        :onclick="setArchivedSelectedOffers">
-                        <ArchiveIcon class="mr-2" /> {{ archiveStore.archives ? 'Désarchiver' : 'Archiver' }}
-                    </Button>
-                    <Button :disabled="!(table.getIsSomeRowsSelected() || table.getIsAllRowsSelected())"
-                        :class="cn((table.getIsSomeRowsSelected() || table.getIsAllRowsSelected()) && 'focus-visible:bg-red-300 hover:bg-red-300 bg-red-500 text-white')"
-                        variant="ghost" :onclick="deleteSelectedOffers">
-                        <TrashIcon class="mr-2" /> Supprimer
-                    </Button>
                 </div>
-                <OfferForm>
-                    <Button>
-                        <PlusIcon class="mr-2" /> Ajouter
-                    </Button>
-                </OfferForm>
-            </div>
-        </Card>
-
-        <Card class="h-full">
-            <CardContent class="p-0 h-full w-[125vh] h-full m-h-[10vh]">
-                <Table class="h-full">
-                    <TableHeader>
-                        <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
-                            <TableHead v-for="header in headerGroup.headers" :key="header.id" class="text-center">
-                                <FlexRender :render="header.column.columnDef.header" :props="header.getContext()" />
-                            </TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        <template v-if="table.getRowModel().rows?.length">
-                            <template v-for="row in table.getRowModel().rows" :key="row.id">
-                                <TableRow :data-state="row.getIsSelected() && 'selected'" class="text-center"
-                                    :onclick="() => noteStore.setNoteId(row.original.id)">
-                                    <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
-                                        <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
-                                    </TableCell>
-                                </TableRow>
-                            </template>
-                        </template>
-                        <TableRow v-else>
-                            <TableCell :colspan="table.getAllColumns().length">
-                                <div class="flex flex-col place-content-center text-center items-center space-y-2">
-                                    <span class="font-medium">
-                                        Pas de candidature {{ archiveStore.archives ? `archivée` : '' }}
-                                    </span>
-                                    <OfferForm v-if="!archiveStore.archives">
-                                        <Button class=" w-[25vh] ">
-                                            <PlusIcon class="mr-2" /> Ajouter une candidature
-                                        </Button>
-                                    </OfferForm>
-                                </div>
-                            </TableCell>
-                            <TableCell>
-                                <span class="text-transparent select-none">____</span>
-                            </TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
             </CardContent>
         </Card>
-    </CardContent>
-
+        <Card class="max-h-[400px] overflow-y-auto">
+            <Table class="h-[300px]">
+                <TableHeader>
+                    <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
+                        <TableHead v-for="header in headerGroup.headers" :key="header.id" class="text-center">
+                            <FlexRender :render="header.column.columnDef.header" :props="header.getContext()" />
+                        </TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    <template v-if="table.getRowModel().rows?.length">
+                        <template v-for="row in table.getRowModel().rows" :key="row.id">
+                            <TableRow :data-state="row.getIsSelected() && 'selected'" class="text-center"
+                                :onclick="() => noteStore.setNoteId(row.original.id)">
+                                <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
+                                    <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
+                                </TableCell>
+                            </TableRow>
+                        </template>
+                    </template>
+                    <TableRow v-else>
+                        <TableCell :colspan="table.getAllColumns().length">
+                            <div class="flex flex-col place-content-center text-center items-center space-y-2">
+                                <span class="font-medium">
+                                    Pas de candidature {{ archiveStore.archives ? `archivée` : '' }}
+                                </span>
+                                <OfferForm v-if="!archiveStore.archives">
+                                    <Button class=" w-[25vh] ">
+                                        <PlusIcon class="mr-2" /> Ajouter une candidature
+                                    </Button>
+                                </OfferForm>
+                            </div>
+                        </TableCell>
+                    </TableRow>
+                </TableBody>
+            </Table>
+        </Card>
+    </div>
 </template>
