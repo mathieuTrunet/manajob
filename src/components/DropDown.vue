@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { useOffersStore } from '@/stores/offers';
 import OfferForm from './OfferForm.vue';
 import { ref } from 'vue';
+import DeleteAlertDialog from './DeleteAlertDialog.vue';
 
 const { offer } = defineProps<{ offer: Offer }>()
 
@@ -21,7 +22,7 @@ const closeMenu = () => { open.value = false, setTimeout(() => { open.value = un
 </script>
 <template>
     <DropdownMenu :open="open">
-        <DropdownMenuTrigger>
+        <DropdownMenuTrigger as-child>
             <Button variant="ghost" class="px-3">
                 <DotsHorizontalIcon />
             </Button>
@@ -42,9 +43,13 @@ const closeMenu = () => { open.value = false, setTimeout(() => { open.value = un
                 </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem :onclick="deleteOffer" class="space-x-2 bg-red-500 focus:bg-red-300 text-white">
-                <TrashIcon /><span>Supprimer</span>
-            </DropdownMenuItem>
+            <DeleteAlertDialog :delete-function="deleteOffer">
+                <Button
+                    class="flex items-center text-sm font-normal p-2 w-full cursor-default select-none justify-start h-8 rounded"
+                    variant="destructive">
+                    <TrashIcon class="mr-2" /><span>Supprimer</span>
+                </Button>
+            </DeleteAlertDialog>
         </DropdownMenuContent>
     </DropdownMenu>
 </template>
