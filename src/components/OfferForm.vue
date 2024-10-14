@@ -51,7 +51,7 @@ const selectedApplyDate = computed({
     set: val => val,
 })
 
-const formIsUncompleted = computed(() => !values.companyName || values.companyName.length < 2 || values.companyName.length >= MAXIMUM_COMPANY_NAME_SIZE)
+const formIsUncompleted = computed(() => !values.companyName || values.companyName.length < 2 || values.companyName.length > MAXIMUM_COMPANY_NAME_SIZE)
 
 watch(() => values.applied, (newVal, oldVal) => (!newVal && oldVal && values.applyDate) && setFieldValue('applyDate', undefined))
 
