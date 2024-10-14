@@ -18,7 +18,7 @@ import { computed, watch } from 'vue'
 import { CalendarDate, DateFormatter, getLocalTimeZone, parseDate, today } from '@internationalized/date'
 import { Checkbox } from './ui/checkbox'
 
-const { modify = false, defaultValues, closeParent } = defineProps<{ modify?: boolean, defaultValues?: Offer, closeParent?: () => void }>()
+const { modify = false, defaultValues, closeParent } = defineProps<{ modify?: boolean, defaultValues?: Partial<Offer>, closeParent?: () => void }>()
 
 const offersStore = useOffersStore()
 
@@ -34,7 +34,7 @@ const formSchema = toTypedSchema(z.object({
 const { values, handleSubmit, setFieldValue } = useForm({
     validationSchema: formSchema,
     initialValues: defaultValues,
-    keepValuesOnUnmount: true
+    keepValuesOnUnmount: modify
 })
 
 const dateFormatter = new DateFormatter('en-GB', { dateStyle: 'short' })
@@ -53,9 +53,11 @@ const formIsUncompleted = computed(() => !values.companyName || values.companyNa
 
 watch(() => values.applied, (newVal, oldVal) => (!newVal && oldVal && values.applyDate) && setFieldValue('applyDate', undefined))
 
+const capitalizeName = (name: string) => name.charAt(0).toUpperCase() + name.slice(1)
+
 const onSubmit = handleSubmit((values) => {
-    if (modify) { offersStore.modifyOffer({ ...values, answerReceived: false, archived: defaultValues!.archived, id: defaultValues!.id }) }
-    else { offersStore.addOffers({ ...values, answerReceived: false, archived: false, id: crypto.randomUUID() }) }
+    if (modify) { offersStore.modifyOffer({ ...values, answerReceived: false, archived: defaultValues!.archived!, id: defaultValues!.id!, companyName: capitalizeName(values.companyName) }) }
+    else { offersStore.addOffers({ ...values, answerReceived: false, archived: false, id: crypto.randomUUID(), companyName: capitalizeName(values.companyName) }) }
     if (closeParent) { closeParent() }
 })
 
@@ -66,17 +68,17 @@ const onSubmit = handleSubmit((values) => {
         <DialogTrigger as-child>
             <slot></slot>
         </DialogTrigger>
-        <DialogContent class="md:max-w-[700px]">
+        <DialogContent class="md:max-w-[700px]" v-on:interact-outside="closeParent">
             <form @submit="onSubmit">
                 <DialogHeader class="mb-4">
                     <DialogTitle>{{ modify ? 'Modifier' : 'Ajouter' }} une candidature</DialogTitle>
                 </DialogHeader>
                 <DialogDescription />
-                <div class="flex place-content-around">
+                <div class="flex place-content-around space-x-2">
                     <div class="space-y-4">
                         <FormField v-slot="{ componentField }" name="companyName">
                             <FormItem>
-                                <FormLabel>Entreprise<span class="text-rose-500"> *</span></FormLabel>
+                                <FormLabel>Entreprise<span class="text-primary"> *</span></FormLabel>
                                 <FormDescription />
                                 <FormControl>
                                     <Input type="text" placeholder="Nom de l'entreprise" v-bind="componentField" />
@@ -96,7 +98,7 @@ const onSubmit = handleSubmit((values) => {
                                 <FormLabel>Expérience</FormLabel>
                                 <FormDescription>Nombre d'années d'expériences requises</FormDescription>
                                 <FormControl>
-                                    <NumberField :min="0"
+                                    <NumberField :min="0" :default-value="values.experienceRequired || 0"
                                         @update:model-value="(v) => setFieldValue('experienceRequired', v ? v : undefined)">
                                         <NumberFieldContent>
                                             <NumberFieldDecrement />
@@ -126,7 +128,7 @@ const onSubmit = handleSubmit((values) => {
                                                 <span>{{ selectedOfferDate ?
                                                     dateFormatter.format(toDate(selectedOfferDate)) : `Date de
                                                     publication de l'annonce`}}</span>
-                                                <CalendarIcon class="ms-auto h-4 w-4 text-rose-500" />
+                                                <CalendarIcon class="ms-auto h-4 w-4 text-primary" />
                                             </Button>
                                             <input hidden>
                                         </FormControl>
@@ -162,7 +164,7 @@ const onSubmit = handleSubmit((values) => {
                                                 <span>{{ selectedApplyDate ?
                                                     dateFormatter.format(toDate(selectedApplyDate)) : `Date de
                                                     candidature au poste`}}</span>
-                                                <CalendarIcon class="ms-auto h-4 w-4 text-rose-500" />
+                                                <CalendarIcon class="ms-auto h-4 w-4 text-primary" />
                                             </Button>
                                             <input hidden>
                                         </FormControl>
@@ -179,8 +181,11 @@ const onSubmit = handleSubmit((values) => {
                     </div>
                 </div>
                 <DialogFooter>
-                    <DialogClose>
-                        <Button type="submit" :disabled="formIsUncompleted">
+                    <Button type="submit" v-if="formIsUncompleted" disabled>
+                        {{ modify ? 'Modifier' : 'Ajouter' }}
+                    </Button>
+                    <DialogClose v-else>
+                        <Button type="submit">
                             {{ modify ? 'Modifier' : 'Ajouter' }}
                         </Button>
                     </DialogClose>
