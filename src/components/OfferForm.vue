@@ -18,12 +18,14 @@ import { computed, watch } from 'vue'
 import { CalendarDate, DateFormatter, getLocalTimeZone, parseDate, today } from '@internationalized/date'
 import { Checkbox } from './ui/checkbox'
 
+const MAXIMUM_COMPANY_NAME_SIZE = 25 
+
 const { modify = false, defaultValues, closeParent } = defineProps<{ modify?: boolean, defaultValues?: Partial<Offer>, closeParent?: () => void }>()
 
 const offersStore = useOffersStore()
 
 const formSchema = toTypedSchema(z.object({
-    companyName: z.string().min(2).max(25),
+    companyName: z.string().min(2).max(MAXIMUM_COMPANY_NAME_SIZE),
     offerLink: z.string().optional().default(''),
     experienceRequired: z.number().optional(),
     offerDate: z.string().optional(),
@@ -49,7 +51,7 @@ const selectedApplyDate = computed({
     set: val => val,
 })
 
-const formIsUncompleted = computed(() => !values.companyName || values.companyName.length < 2)
+const formIsUncompleted = computed(() => !values.companyName || values.companyName.length < 2 || values.companyName.length >= MAXIMUM_COMPANY_NAME_SIZE)
 
 watch(() => values.applied, (newVal, oldVal) => (!newVal && oldVal && values.applyDate) && setFieldValue('applyDate', undefined))
 
