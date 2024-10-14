@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { GithubLogoIcon, MoonIcon, SunIcon, UploadIcon } from '@radix-icons/vue';
 import DataDialog from './DataDialog.vue'
 
-const mode = useColorMode()
+const mode = useColorMode({ initialValue: 'light' })
 
 const GITHUB_URL = 'https://github.com/mathieuTrunet/manajob'
 
